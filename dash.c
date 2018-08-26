@@ -7,18 +7,28 @@
    Implement commands "exit", "cd", and "path".
    Implement "interactive" and "batch" modes. */
 
+/* 1: Run program (no extra arguments = interactive, otherwise batch). 
+   2a: If interactive, enter while loop, write prompt, take in input line.
+   2b: If batch, open file, read in input line.
+   3: Determine whether input function is built-in, implemented, or neither.
+   4a: If built-in, access folder. Fork, run execvp process.
+   4b: If implemented, run relevant method.
+   4c: If neither, return error message.
+   5: Repeat for all other lines of input supplied.
+   6: Exit(1) upon exit command.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-void error() {
+void error() { // write error message
   printf("Something has gone horribly wrong.\n");
 }
 
-void checkExit(char *line) {
+void parse_arg(char *line) { // parse argument: determine whether it's built-in or implemented
   printf("%s", line);
   //printf("%p\n", (void *) &line);
-  access("bin/ls", X_OK);
 }
 
 int main (int argc, char **argv) {
@@ -36,7 +46,7 @@ int main (int argc, char **argv) {
 	int x = (line == 'exit');
 	printf("%s", line);
 	printf("%d\n", x);
-	//checkExit(line);
+	//parse_arg(line);
       }
     }
   } else if (argc == 2) {

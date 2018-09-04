@@ -13,17 +13,54 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/limits.h>
+#include <sys/wait.h>
 
 void error() {
   printf("Something has gone horribly wrong.\n");
 }
 
-void execute_impl (int command, char* arg[][5]) {
+void execute_builtin(char* arg[][10]) {
+  int i, j;
+  int command_num, arg_num;
+  char path[20] = "/bin/";
+  for (i=0; i<10; i++) {
+    command_num, arg_num = 0;
+    if (arg[i][0] != '\0') {
+      command_num++;
+      for (j=0; j<10; j++) {
+	if (arg[i][j] != '\0') {
+	  arg_num++;
+	}
+      }
+
+      strcat(path, arg[i][0]);
+      if (access(path, X_OK) == 0) {
+	//printf("Execute process here.\n");
+	//printf("Hello world (pid:%d)\n", (int) getpid());
+	int rc = fork();
+	if (rc < 0) {
+	  printf("Fork failed.\n");
+	  exit(1);
+	} else if (rc == 0) {
+	  // printf("Hello! I am child (pid:%d)\n", (int) getpid());
+	  execv(path, arg[i]);
+	} else {
+	  int rc_wait = wait(NULL);
+	  //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
+	}
+      }
+      printf("Command number %d has %d arguments.\n", command_num, arg_num);
+      //      printf("Access: %d\n", access(path, X_OK));
+    }
+  }
+}
+
+void execute_impl (int command, char* arg[][10]) {
   int i;
   int arg_num = -1;
+  char path[30];
 
-  for (i=0; i<5; i++) {
+  for (i=0; i<10; i++) {
     if (arg[0][i] != '\0') {
       arg_num++;
     }
@@ -47,21 +84,40 @@ void execute_impl (int command, char* arg[][5]) {
       }
       break;
     case 2:
-      printf("Change path to: %s\n", arg[0][1]);
+      for (i=1; i<=arg_num; i++) {
+	strcat(path, arg[0][i]);
+	strcat(path, " ");
+      }
+      printf("Change path to: %s\n", path);
   }
 
+}
+
+int handle_commands(char* commands[][10]) {
+  int k, implemented = 0;
+  const char *impl[3] = {"exit", "cd", "path"};
+  for (k=0; k<3; k++) {
+    if (strcmp(impl[k], commands[0][0]) == 0) {
+      execute_impl(k, commands);
+      implemented = 1;
+      break;
+    }
+  }
+
+  if (implemented != 1) {
+    execute_builtin(commands);
+  }
 }
 
 void parse_arg(char* command) {
 
   int i, j, k;
   int implemented = 0;
-  char *str1, *str2, *token, *subtoken, *saveptr1, *saveptr2;
-  char *commands[20][5];
-  const char *impl[3] = {"exit", "cd", "path"};
+  char *str1, *str2, *token, *subtoken, *saveptr1, *saveptr2, *filepath;
+  char *commands[10][10];
 
-  for (i=0; i<20; i++) {
-    for (j=0; j<5; j++) {
+  for (i=0; i<10; i++) {
+    for (j=0; j<10; j++) {
 	commands[i][j] = '\0';
       }
   }
@@ -75,28 +131,17 @@ void parse_arg(char* command) {
     printf("%d: %s\n", i, token);
 
     for (j = 0, str2 = token; ; j++, str2 = NULL) {
-      subtoken = strtok_r(str2, " ", &saveptr2);
+      subtoken = strtok_r(str2, " \t", &saveptr2);
       if (subtoken == NULL) { break; }
       commands[i][j] = subtoken;
       printf(" -- %d: %s\n", j, subtoken);
     }
   }
 
-  for (k=0; k<3; k++) {
-    if (strcmp(impl[k], commands[0][0]) == 0) {
-      execute_impl(k, commands);
-      implemented = 1;
-      break;
-    }
-  }
+  handle_commands(commands);
 
-
-
-  //execute_builtin(commands);
-  printf("Implemented: %d\n", implemented);
-
-  for (i=0; i<20; i++) {
-    for (j=0; j<5; j++) {
+  for (i=0; i<10; i++) {
+    for (j=0; j<10; j++) {
       printf("%s ", commands[i][j]);
     }
     printf("\n");

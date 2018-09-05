@@ -19,21 +19,25 @@ void error() {
   printf("Something has gone horribly wrong.\n");
 }
 
-void execute_builtin(char* arg[][10]) {
+void execute_command(char* arg[][10]) {
   int i, j;
   int command_num, arg_num;
   char path[20] = "/bin/";
+  char command[30];
+  char output[20];
   for (i=0; i<10; i++) {
+    strcpy(command, "\0");
     command_num, arg_num = 0;
     if (arg[i][0] != '\0') {
       command_num++;
       for (j=0; j<10; j++) {
 	if (arg[i][j] != '\0') {
 	  arg_num++;
+	  strcat(command, arg[i][j]);
 	}
       }
 
-      strcat(path, arg[i][0]);
+      /*strcat(path, arg[i][0]);
       if (access(path, X_OK) == 0) {
 	//printf("Execute process here.\n");
 	//printf("Hello world (pid:%d)\n", (int) getpid());
@@ -48,14 +52,16 @@ void execute_builtin(char* arg[][10]) {
 	  int rc_wait = wait(NULL);
 	  //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
 	}
-      }
+	} else { error(); }*/
+      printf("Command is: %s\n", command);
       printf("Command number %d has %d arguments.\n", command_num, arg_num);
       //      printf("Access: %d\n", access(path, X_OK));
     }
+    //printf("Command number %d has %d arguments.\n", command_num, arg_num);
   }
 }
 
-void execute_impl (int command, char* arg[][10]) {
+void execute_builtin (int command, char* arg[][10]) {
   int i;
   int arg_num = -1;
   char path[30];
@@ -80,7 +86,7 @@ void execute_impl (int command, char* arg[][10]) {
       if (arg_num < 1 || arg_num > 1) {
 	error();
       } else {
-	printf("Change directory to: %s\n", arg[0][1]);
+	chdir(arg[0][1]);
       }
       break;
     case 2:
@@ -94,18 +100,18 @@ void execute_impl (int command, char* arg[][10]) {
 }
 
 int handle_commands(char* commands[][10]) {
-  int k, implemented = 0;
+  int k, built_in = 0;
   const char *impl[3] = {"exit", "cd", "path"};
   for (k=0; k<3; k++) {
     if (strcmp(impl[k], commands[0][0]) == 0) {
-      execute_impl(k, commands);
-      implemented = 1;
+      execute_builtin(k, commands);
+      built_in = 1;
       break;
     }
   }
 
-  if (implemented != 1) {
-    execute_builtin(commands);
+  if (built_in != 1) {
+    execute_command(commands);
   }
 }
 

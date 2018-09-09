@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/wait.h>
 
@@ -20,11 +21,13 @@ void error() {
 }
 
 void execute_command(char* arg[][10]) {
-  int i, j;
+  int i, j, out, sys_out, sys_err;
   int command_num, arg_num;
   char path[20] = "/bin/";
   char command[30];
   char output[20];
+  char *redirect[10];
+  char *token;
   for (i=0; i<10; i++) {
     strcpy(command, "\0");
     command_num, arg_num = 0;
@@ -34,10 +37,36 @@ void execute_command(char* arg[][10]) {
 	if (arg[i][j] != '\0') {
 	  arg_num++;
 	  strcat(command, arg[i][j]);
+	  strcat(command, " ");
 	}
       }
 
-      /*strcat(path, arg[i][0]);
+      token = strtok(command, ">");
+      redirect[0] = token;
+      redirect[1] = '\0';
+      
+      token = strtok(NULL, "> ");
+      if (token != NULL) {
+	printf("%s\n", token);
+	redirect[1] = token;
+	//token = strtok(NULL, "> ");
+      }
+      
+      token = strtok(NULL, "> ");
+      if (token != NULL) {
+	error();
+      }
+
+      if (redirect[1] != NULL) {
+	out = open(redirect[1], O_RDWR|O_CREAT|O_TRUNC, 0600);
+	if (-1 == out) { error(); }
+	sys_out = dup(fileno(stdout));
+	sys_err = dup(fileno(stderr));
+	if (-1 == dup2(out, fileno(stdout))) { error(); }
+	if (-1 == dup2(out, fileno(stderr))) { error(); }
+      }
+
+      strcat(path, arg[i][0]);
       if (access(path, X_OK) == 0) {
 	//printf("Execute process here.\n");
 	//printf("Hello world (pid:%d)\n", (int) getpid());
@@ -47,17 +76,30 @@ void execute_command(char* arg[][10]) {
 	  exit(1);
 	} else if (rc == 0) {
 	  // printf("Hello! I am child (pid:%d)\n", (int) getpid());
-	  execv(path, arg[i]);
+	  char* temp[1] = {redirect[0]};
+	  execv(path, temp);
 	} else {
 	  int rc_wait = wait(NULL);
 	  //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
 	}
-	} else { error(); }*/
-      printf("Command is: %s\n", command);
+	} else { error(); }
+
+      if (redirect[1] != NULL) {
+	fflush(stdout);
+	fflush(stderr);
+	close(out);
+
+	dup2(sys_out, fileno(stdout));
+	dup2(sys_err, fileno(stderr));
+
+	close(sys_out);
+	close(sys_err);
+      }
+
       printf("Command number %d has %d arguments.\n", command_num, arg_num);
-      //      printf("Access: %d\n", access(path, X_OK));
+      printf("Command:%s, Redirect:%s\n", redirect[0], redirect[1]);
+     
     }
-    //printf("Command number %d has %d arguments.\n", command_num, arg_num);
   }
 }
 
@@ -133,7 +175,7 @@ void parse_arg(char* command) {
     implemented = 0;
     token = strtok_r(str1, "&", &saveptr1);
     if (token == NULL) { break; }
-    commands[i][0] = token;
+    commands[i][0] =  token;
     printf("%d: %s\n", i, token);
 
     for (j = 0, str2 = token; ; j++, str2 = NULL) {
@@ -146,12 +188,12 @@ void parse_arg(char* command) {
 
   handle_commands(commands);
 
-  for (i=0; i<10; i++) {
+  /*for (i=0; i<10; i++) {
     for (j=0; j<10; j++) {
       printf("%s ", commands[i][j]);
     }
     printf("\n");
-  }
+  }*/
 
 }
 

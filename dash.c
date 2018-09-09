@@ -80,7 +80,14 @@ void execute_command(char* arg[][10]) {
 	  exit(1);
 	} else if (rc == 0) {
 	  // printf("Hello! I am child (pid:%d)\n", (int) getpid());
-	  char* temp[1] = {redirect[0]};
+	  char* temp[10];
+	  j=0;
+	  token = strtok(redirect[0], " \t");
+	  while (token != NULL) {
+	    temp[j++] = token;
+	    token = strtok(NULL, " \t");
+	  }
+
 	  execv(execpath, temp);
 	} else {
 	  //int rc_wait = wait(NULL);

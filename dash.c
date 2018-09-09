@@ -15,6 +15,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <errno.h>
 
 void error() {
   printf("Something has gone horribly wrong.\n");
@@ -24,10 +26,12 @@ void execute_command(char* arg[][10]) {
   int i, j, out, sys_out, sys_err;
   int command_num, arg_num;
   char path[20] = "/bin/";
+  char execpath[20];
   char command[30];
   char output[20];
   char *redirect[10];
   char *token;
+
   for (i=0; i<10; i++) {
     strcpy(command, "\0");
     command_num, arg_num = 0;
@@ -49,7 +53,6 @@ void execute_command(char* arg[][10]) {
       if (token != NULL) {
 	printf("%s\n", token);
 	redirect[1] = token;
-	//token = strtok(NULL, "> ");
       }
       
       token = strtok(NULL, "> ");
@@ -66,8 +69,9 @@ void execute_command(char* arg[][10]) {
 	if (-1 == dup2(out, fileno(stderr))) { error(); }
       }
 
-      strcat(path, arg[i][0]);
-      if (access(path, X_OK) == 0) {
+      strcpy(execpath, path);
+      strcat(execpath, arg[i][0]);
+      if (access(execpath, X_OK) == 0) {
 	//printf("Execute process here.\n");
 	//printf("Hello world (pid:%d)\n", (int) getpid());
 	int rc = fork();
@@ -77,12 +81,12 @@ void execute_command(char* arg[][10]) {
 	} else if (rc == 0) {
 	  // printf("Hello! I am child (pid:%d)\n", (int) getpid());
 	  char* temp[1] = {redirect[0]};
-	  execv(path, temp);
+	  execv(execpath, temp);
 	} else {
-	  int rc_wait = wait(NULL);
+	  //int rc_wait = wait(NULL);
 	  //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
 	}
-	} else { error(); }
+      } else { printf("Here\n"); }
 
       if (redirect[1] != NULL) {
 	fflush(stdout);
@@ -101,6 +105,11 @@ void execute_command(char* arg[][10]) {
      
     }
   }
+
+  for (i=0; i<10; i++) {
+    wait(NULL);
+  }
+
 }
 
 void execute_builtin (int command, char* arg[][10]) {

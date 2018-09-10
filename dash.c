@@ -211,7 +211,6 @@ void parse_arg(char* command) {
 // Interactive mode: No other arguments in argv[], runs "dash> " prompt.
 int interactive_mode() {
 
-  printf("Interactive mode.\n");
   char *command = NULL;
   size_t size;
 
@@ -229,7 +228,6 @@ int interactive_mode() {
 // Parses the file line by line and offloads contents to handler.
 int batch_mode(char* filename) {
 
-  printf("Batch mode. Argument is: %s\n", filename);
   FILE *fp;
   char *command = NULL;
   size_t size;

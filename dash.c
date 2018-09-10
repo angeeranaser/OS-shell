@@ -20,27 +20,24 @@
 
 char path[512] = "/bin/";
 
-void error() {
-  printf("Something has gone horribly wrong.\n");
+void error() { // The only error message needed in this program.
+  char error_message[30] = "An error has occurred\n";
+  write(STDERR_FILENO, error_message, strlen(error_message));
 }
 
-void execute_command(char* arg[][10]) {
+void execute_command(char* arg[][10]) { // Execute system (non-built-in) commands.
   int i, j, k, out, sys_out, sys_err;
-  int command_num, arg_num;
-  char *execpath;
+  char execpath[20];
   char command[30];
-  char output[20];
   char *redirect[10];
   char *token;
 
+  // Concatenate commands to later tokenize for file redirection operator.
   for (i=0; i<10; i++) {
     strcpy(command, "\0");
-    command_num, arg_num = 0;
     if (arg[i][0] != '\0') {
-      command_num++;
       for (j=0; j<10; j++) {
 	if (arg[i][j] != '\0') {
-	  arg_num++;
 	  strcat(command, arg[i][j]);
 	  strcat(command, " ");
 	}
@@ -52,7 +49,6 @@ void execute_command(char* arg[][10]) {
       
       token = strtok(NULL, "> ");
       if (token != NULL) {
-	printf("%s\n", token);
 	redirect[1] = token;
       }
       
@@ -61,6 +57,7 @@ void execute_command(char* arg[][10]) {
 	error();
       }
 
+      // Start handling file redirection.
       if (redirect[1] != NULL) {
 	out = open(redirect[1], O_RDWR|O_CREAT|O_TRUNC, 0600);
 	if (-1 == out) { error(); }
@@ -70,22 +67,18 @@ void execute_command(char* arg[][10]) {
 	if (-1 == dup2(out, fileno(stderr))) { error(); }
       }
 
-      //strcpy(execpath, path);
-      //strcat(execpath, arg[i][0]);
-      char *p = strtok(path, ";");
+      // Execute commands; check for & operator and execute in parallel if present.
+      char *p = strtok(path, " \t");
       while(p != NULL) {
-	execpath = p;
+
+	strcpy(execpath, p);
 	strcat(execpath, arg[i][0]);
-	//strcpy(execpath, p);
-	if (access(p, X_OK) == 0) {
-	  //printf("Execute process here.\n");
-	  //printf("Hello world (pid:%d)\n", (int) getpid());
+
+	if(access(execpath, X_OK) == 0) {
 	  int rc = fork();
 	  if (rc < 0) {
-	    printf("Fork failed.\n");
 	    exit(1);
 	  } else if (rc == 0) {
-	    // printf("Hello! I am child (pid:%d)\n", (int) getpid());
 	    char* temp[10];
 	    j=0;
 	    token = strtok(redirect[0], " \t");
@@ -93,17 +86,17 @@ void execute_command(char* arg[][10]) {
 	      temp[j++] = token;
 	      token = strtok(NULL, " \t");
 	    }
-
 	    execv(execpath, temp);
-	  } else {
-	    //int rc_wait = wait(NULL);
-	    //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
-	  }
+	  } else {}
+	  strcpy(p, path);
 	  break;
+	} else {
+	  error();
 	}
-	p = strtok(NULL, ";");
+	p = strtok(NULL, " \t");
       }
 
+      // Finish handling file redirection.
       if (redirect[1] != NULL) {
 	fflush(stdout);
 	fflush(stderr);
@@ -114,24 +107,22 @@ void execute_command(char* arg[][10]) {
 
 	close(sys_out);
 	close(sys_err);
-      }
-
-      printf("Command number %d has %d arguments.\n", command_num, arg_num);
-      printf("Command:%s, Redirect:%s\n", redirect[0], redirect[1]);
-     
+      }     
     }
   }
 
+  // Wait for all child processes to finish before proceeding.
   for (i=0; i<10; i++) {
     wait(NULL);
   }
 
 }
 
+// Execute built-in commands: exit, change directory, and path.
 void execute_builtin (int command, char* arg[][10]) {
   int i;
   int arg_num = -1;
-  char p[30];
+  char p[512];
 
   for (i=0; i<10; i++) {
     if (arg[0][i] != '\0') {
@@ -139,34 +130,34 @@ void execute_builtin (int command, char* arg[][10]) {
     }
   }
 
-  printf("Number of arguments: %d\n", arg_num);
-
   switch(command) {
-    case 0:
+  case 0: // Exit.
       if (arg_num < 0 || arg_num > 0) { 
 	error(); 
       } else {
 	exit(0);
       }
       break;
-    case 1:
+  case 1: // Change directory.
       if (arg_num < 1 || arg_num > 1) {
 	error();
       } else {
 	chdir(arg[0][1]);
       }
       break;
-    case 2:
+  case 2: // Path.
+      strcpy(p, "\0");
       for (i=1; i<=arg_num; i++) {
 	strcat(p, arg[0][i]);
+	strcat(p, "/");
 	strcat(p, " ");
       }
       strcpy(path, p);
-      printf("Change path to: %s\n", p);
   }
 
 }
 
+// Find out whether command is built-in or system, and execute accordingly.
 int handle_commands(char* commands[][10]) {
   int k, built_in = 0;
   const char *impl[3] = {"exit", "cd", "path"};
@@ -183,6 +174,8 @@ int handle_commands(char* commands[][10]) {
   }
 }
 
+// Tokenize by & first to handle parallel commands.
+// Then tokenize by whitespace to separate arguments from command.
 void parse_arg(char* command) {
 
   int i, j, k;
@@ -202,27 +195,20 @@ void parse_arg(char* command) {
     token = strtok_r(str1, "&", &saveptr1);
     if (token == NULL) { break; }
     commands[i][0] =  token;
-    printf("%d: %s\n", i, token);
 
     for (j = 0, str2 = token; ; j++, str2 = NULL) {
       subtoken = strtok_r(str2, " \t", &saveptr2);
       if (subtoken == NULL) { break; }
       commands[i][j] = subtoken;
-      printf(" -- %d: %s\n", j, subtoken);
     }
   }
 
+  // Pass resulting array off to handling function.
   handle_commands(commands);
-
-  /*for (i=0; i<10; i++) {
-    for (j=0; j<10; j++) {
-      printf("%s ", commands[i][j]);
-    }
-    printf("\n");
-  }*/
 
 }
 
+// Interactive mode: No other arguments in argv[], runs "dash> " prompt.
 int interactive_mode() {
 
   printf("Interactive mode.\n");
@@ -234,18 +220,42 @@ int interactive_mode() {
     printf("dash> ");
     getline(&command, &size, stdin);
     command[strcspn(command, "\n")] = '\0';
-    printf("Your command was: %s\n", command);
     parse_arg(command);
   }
 
 }
 
-int batch_mode(char* command) {
+// Batch mode: One argument (filename) in argv[].
+// Parses the file line by line and offloads contents to handler.
+int batch_mode(char* filename) {
 
-  printf("Batch mode. Argument is: %s\n", command);
+  printf("Batch mode. Argument is: %s\n", filename);
+  FILE *fp;
+  char *command = NULL;
+  size_t size;
+  ssize_t read;
+
+  fp = fopen(filename, "r");
+  if (fp == NULL) {
+    exit(1);
+  }
+
+  while((read = getline(&command, &size, fp)) != -1) {
+    command[strcspn(command, "\n")] = '\0';
+    parse_arg(command);
+  }
+
+  fclose(fp);
+
+  if (command) {
+    free(command);
+  }
+
+  exit(0);
 
 }
 
+// Main function: Determines whether shell is to be run in interactive mode or batch mode.
 int main (int argc, char **argv) {
 
   if (argc == 1) {

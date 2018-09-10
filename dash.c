@@ -18,15 +18,16 @@
 #include <sys/types.h>
 #include <errno.h>
 
+char path[512] = "/bin/";
+
 void error() {
   printf("Something has gone horribly wrong.\n");
 }
 
 void execute_command(char* arg[][10]) {
-  int i, j, out, sys_out, sys_err;
+  int i, j, k, out, sys_out, sys_err;
   int command_num, arg_num;
-  char path[20] = "/bin/";
-  char execpath[20];
+  char *execpath;
   char command[30];
   char output[20];
   char *redirect[10];
@@ -69,31 +70,39 @@ void execute_command(char* arg[][10]) {
 	if (-1 == dup2(out, fileno(stderr))) { error(); }
       }
 
-      strcpy(execpath, path);
-      strcat(execpath, arg[i][0]);
-      if (access(execpath, X_OK) == 0) {
-	//printf("Execute process here.\n");
-	//printf("Hello world (pid:%d)\n", (int) getpid());
-	int rc = fork();
-	if (rc < 0) {
-	  printf("Fork failed.\n");
-	  exit(1);
-	} else if (rc == 0) {
-	  // printf("Hello! I am child (pid:%d)\n", (int) getpid());
-	  char* temp[10];
-	  j=0;
-	  token = strtok(redirect[0], " \t");
-	  while (token != NULL) {
-	    temp[j++] = token;
-	    token = strtok(NULL, " \t");
-	  }
+      //strcpy(execpath, path);
+      //strcat(execpath, arg[i][0]);
+      char *p = strtok(path, ";");
+      while(p != NULL) {
+	execpath = p;
+	strcat(execpath, arg[i][0]);
+	//strcpy(execpath, p);
+	if (access(p, X_OK) == 0) {
+	  //printf("Execute process here.\n");
+	  //printf("Hello world (pid:%d)\n", (int) getpid());
+	  int rc = fork();
+	  if (rc < 0) {
+	    printf("Fork failed.\n");
+	    exit(1);
+	  } else if (rc == 0) {
+	    // printf("Hello! I am child (pid:%d)\n", (int) getpid());
+	    char* temp[10];
+	    j=0;
+	    token = strtok(redirect[0], " \t");
+	    while (token != NULL) {
+	      temp[j++] = token;
+	      token = strtok(NULL, " \t");
+	    }
 
-	  execv(execpath, temp);
-	} else {
-	  //int rc_wait = wait(NULL);
-	  //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
+	    execv(execpath, temp);
+	  } else {
+	    //int rc_wait = wait(NULL);
+	    //printf("Hello, I am parent of %d (rc_wait:%d) (pid:%d)\n", rc, rc_wait, (int) getpid());
+	  }
+	  break;
 	}
-      } else { printf("Here\n"); }
+	p = strtok(NULL, ";");
+      }
 
       if (redirect[1] != NULL) {
 	fflush(stdout);
@@ -122,7 +131,7 @@ void execute_command(char* arg[][10]) {
 void execute_builtin (int command, char* arg[][10]) {
   int i;
   int arg_num = -1;
-  char path[30];
+  char p[30];
 
   for (i=0; i<10; i++) {
     if (arg[0][i] != '\0') {
@@ -149,10 +158,11 @@ void execute_builtin (int command, char* arg[][10]) {
       break;
     case 2:
       for (i=1; i<=arg_num; i++) {
-	strcat(path, arg[0][i]);
-	strcat(path, " ");
+	strcat(p, arg[0][i]);
+	strcat(p, " ");
       }
-      printf("Change path to: %s\n", path);
+      strcpy(path, p);
+      printf("Change path to: %s\n", p);
   }
 
 }
